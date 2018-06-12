@@ -59,6 +59,7 @@ export interface ComponentModelModifier {
      * Set a component model as singleton life style, default lifestyle is transient
      */
     singleton(): ComponentModelModifier
+    onCreated(callback: (instance: any) => any): ComponentModelModifier
 }
 
 /**
@@ -68,6 +69,7 @@ export interface ComponentModel {
     kind: string,
     name: string,
     scope: LifetimeScope
+    onCreatedCallback?: (instance:any) => any
 }
 
 /**
@@ -163,8 +165,14 @@ abstract class ComponentModelBase implements ComponentModel, ComponentModelModif
     abstract kind: string;
     abstract name: string;
     scope: LifetimeScope = "Transient"
+    onCreatedCallback?: (instance: any) => any;
     singleton(): ComponentModelModifier {
         this.scope = "Singleton"
+        return this
+    }
+
+    onCreated(callback: (x: any) => any): ComponentModelModifier {
+        this.onCreatedCallback = callback
         return this
     }
 }
@@ -172,13 +180,18 @@ abstract class ComponentModelBase implements ComponentModel, ComponentModelModif
 abstract class ResolverBase implements Resolver {
     protected abstract getInstance(typeInfo: ComponentModel): any
     constructor(protected kernel: Kernel, protected cache: { [key: string]: any }) { }
-    resolve<T>(config: ComponentModel): T {
-        if (config.scope == "Singleton") {
-            let cache = this.cache[config.name]
-            if (!cache) this.cache[config.name] = cache = this.getInstance(config)
+    resolve<T>(component: ComponentModel): T {
+        if (component.scope == "Singleton") {
+            let cache = this.cache[component.name]
+            if (!cache) this.cache[component.name] = cache = this.getInstance(component)
             return cache
         }
-        else return this.getInstance(config)
+        else {
+            if(component.onCreatedCallback)
+                return component.onCreatedCallback(this.getInstance(component))
+            else
+                return this.getInstance(component)
+        } 
     }
 }
 

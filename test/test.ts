@@ -125,6 +125,18 @@ describe("Container", () => {
         Chai.expect(childFactory.get()).not.eq(child)
     })
 
+    it("Should be able to provide hook when component created", () => {
+        class Computer { price = 2000 }
+        const container = new Container();
+        container.register(Computer).onCreated((x:Computer) => {
+            x.price = 4000;
+            return x
+        })
+        const computer = container.resolve(Computer)
+        Chai.expect(computer instanceof Computer).true
+        Chai.expect(computer.price).eq(4000)
+    })
+
     describe("Error Handling", () => {
         it("Should throw error if no resolver found for a kind of ComponentModel", () => {
             const container = new Container()

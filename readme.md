@@ -59,8 +59,13 @@ My Own IoC Container support most of common IoC Container features:
 - [x] Inject instance
 - [x] Inject instance with factory function
 - [x] Inject Auto factory 
-- [ ] Interception
-- [ ] Circular dependency analysis
+- [ ] Component creation hook
+
+Things that will not supported because it introduce more code base and complexity
+* Dependency graph analysis such as circular dependency, captive dependency etc
+* Child container
+* Interception (use Component creation hook with Proxy or other proxy framework such as [Benalu](https://github.com/ktutnik/benalu))
+* Multiple injection 
 
 ## Constructor Injection
 Decorate class with `@inject.constructor()` to automatically inject registered type to the constructor parameters. You don't need to specify more configuration, the container has enough information about parameter type of the class as long as you enable the `emitDecoratorMetadata:true` in the `tsconfig.json` file. Keep in mind this automatic type detection only work for parameter of type ES6 classes.
