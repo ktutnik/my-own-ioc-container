@@ -59,7 +59,7 @@ My Own IoC Container support most of common IoC Container features:
 - [x] Inject instance
 - [x] Inject instance with factory function
 - [x] Inject Auto factory 
-- [ ] Component creation hook
+- [x] Component creation hook
 
 Things that will not supported because it introduce more code base and complexity
 * Dependency graph analysis such as circular dependency, captive dependency etc
