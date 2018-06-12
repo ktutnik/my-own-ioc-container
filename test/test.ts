@@ -1,5 +1,6 @@
 import * as Chai from "chai"
 import "reflect-metadata"
+import * as Benalu from "benalu"
 import { Container, inject, ComponentModel, AutoFactory, ComponentModelModifier } from "../src/ioc-container";
 
 describe("Container", () => {
@@ -128,7 +129,7 @@ describe("Container", () => {
     it("Should be able to provide hook when component created", () => {
         class Computer { price = 2000 }
         const container = new Container();
-        container.register(Computer).onCreated((x:Computer) => {
+        container.register(Computer).onCreated(x => {
             x.price = 4000;
             return x
         })
@@ -137,10 +138,65 @@ describe("Container", () => {
         Chai.expect(computer.price).eq(4000)
     })
 
+    it("Should be able to provide hook for named type", () => {
+        class Computer { price = 2000 }
+        const container = new Container();
+        container.register("Computer").asType(Computer).onCreated(x => {
+            x.price = 4000;
+            return x
+        })
+        const computer = container.resolve<Computer>("Computer")
+        Chai.expect(computer instanceof Computer).true
+        Chai.expect(computer.price).eq(4000)
+    })
+
+    it("Should be able to provide hook for named instance", () => {
+        class Computer { price = 2000 }
+        const container = new Container();
+        container.register("Computer").asInstance(new Computer()).onCreated(x => {
+            x.price = 4000;
+            return x
+        })
+        const computer = container.resolve<Computer>("Computer")
+        Chai.expect(computer instanceof Computer).true
+        Chai.expect(computer.price).eq(4000)
+    })
+
+    it("Should be able to provide hook for auto factory", () => {
+        class Computer { price = 2000 }
+        const container = new Container();
+        container.register(Computer)
+        container.register("ComputerFactory").asAutoFactory(Computer).onCreated(x => {
+            return x
+        })
+        const factory = container.resolve<AutoFactory<Computer>>("ComputerFactory")
+        Chai.expect(factory.get() instanceof Computer).true
+    })
+
+    it("Should be able to use Benalu as interception", () => {
+        class Computer {
+            start() {
+                console.log("Starting......")
+            }
+        }
+        const container = new Container();
+        container.register(Computer)
+            .onCreated(instance => Benalu.fromInstance(instance)
+                .addInterception(i => {
+                    if(i.memberName == "start"){
+                        console.log("Before starting computer...")
+                        i.proceed()
+                        console.log("Computer ready")
+                    }
+                }).build())
+        const computer = container.resolve(Computer)
+        computer.start()
+    })
+
     describe("Error Handling", () => {
         it("Should throw error if no resolver found for a kind of ComponentModel", () => {
             const container = new Container()
-            container.register(<ComponentModel & ComponentModelModifier>{ kind: "NotAKindOfComponent", name: "TheName", scope: "Transient" })
+            container.register(<ComponentModel>{ kind: "NotAKindOfComponent", name: "TheName", scope: "Transient" })
             Chai.expect(() => container.resolve("TheName")).throws("No resolver registered for component model kind of NotAKindOfComponent")
         })
 

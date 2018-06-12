@@ -134,6 +134,32 @@ const plane = container.resolve(Plane)
 
 > Keep in mind that instance injection always follow the component lifestyle (transient/singleton)
 
+
+## Instance Injection with Dynamic Value
+Sometime the instance injected need to instantiated when the component resolved not when it registered, example injecting Date to the constructor like below:
+
+```typescript
+import { inject, Container } from "./ioc-container"
+
+interface Engine { }
+class JetEngine implements Engine {
+    constructor(refillTime:Date)
+}
+
+@inject.constructor()
+class Plane {
+    constructor(@inject.name("Engine") private engine:Engine){}
+}
+
+const container = new Container()
+container.register("Engine").asInstance(x => new JetEngine(new Date()))
+container.register(Plane)
+
+const plane = container.resolve(Plane)
+```
+
+By providing a function callback, the `new Date()` will be executed exactly after the `Plane` resolved. The x parameter of the callback is of type of `Kernel`, read explanation below for more detail.
+
 ## Instance Injection that Depends on Other Component
 In some case injecting instance can be difficult, because its depends on other type registered in the container. You can do it like below
 
@@ -231,3 +257,39 @@ constructor(@inject.name("AutoFactory<Plane>") private factory:AutoFactory<Plane
 > `asAutoFactory` also work with named component by specifying name of the component in the parameter `asAutoFactory("<TheNameOfComponent>")`
 > 
 > Keep in mind the life style of the type returned by Auto Factory will respect the type registration, if you specify `.singleton()` after the `asAutoFactory()` registration it will become the life style of the Factory not the returned type.
+
+## OnCreated hook and Interception
+OnCreated used when you want to modify the instance of the component. With this feature you can make an interception by modify the instance with Proxy. On this example we will use [Benalu 2.0.0-beta-1](http://github.com/ktutnik/benalu) as the proxy library.
+
+```typescript
+import * as Benalu from "benalu"
+import { Container } from "./ioc-container"
+
+class Computer {
+    start() {
+        console.log("Starting......")
+    }
+}
+
+const container = new Container();
+container.register(Computer)
+    .onCreated(instance => Benalu.fromInstance(instance)
+        .addInterception(i => {
+            if(i.memberName == "start"){
+                console.log("Before starting computer...")
+                i.proceed()
+                console.log("Computer ready")
+            }
+        }).build())
+const computer = container.resolve(Computer)
+computer.start()
+
+/*
+--- result:
+Before starting computer...
+Starting......
+Computer ready
+*/
+```
+
+Above code showing that we intercept the execution of `Computer.start()` method adding console log before and after execution.

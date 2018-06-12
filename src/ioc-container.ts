@@ -54,12 +54,12 @@ export interface Kernel {
 /**
  * ComponentModel modifier that will be exposed on fluent registration
  */
-export interface ComponentModelModifier {
+export interface ComponentModelModifier<T> {
     /**
      * Set a component model as singleton life style, default lifestyle is transient
      */
-    singleton(): ComponentModelModifier
-    onCreated(callback: (instance: any) => any): ComponentModelModifier
+    singleton(): ComponentModelModifier<T>
+    onCreated(callback: (instance: T) => T): ComponentModelModifier<T>
 }
 
 /**
@@ -161,17 +161,17 @@ function resolver(kind: string) {
 /* --------------------------------- CONTAINERS ---------------------------------- */
 /* ------------------------------------------------------------------------------- */
 
-abstract class ComponentModelBase implements ComponentModel, ComponentModelModifier {
+abstract class ComponentModelBase<T> implements ComponentModel, ComponentModelModifier<T> {
     abstract kind: string;
     abstract name: string;
     scope: LifetimeScope = "Transient"
     onCreatedCallback?: (instance: any) => any;
-    singleton(): ComponentModelModifier {
+    singleton(): ComponentModelModifier<T> {
         this.scope = "Singleton"
         return this
     }
 
-    onCreated(callback: (x: any) => any): ComponentModelModifier {
+    onCreated(callback: (instance: T) => T): ComponentModelModifier<T> {
         this.onCreatedCallback = callback
         return this
     }
@@ -224,7 +224,7 @@ export class Container implements Kernel {
      * Register Type, this feature require emitDecoratorMetadata enabled on tsconfig.json
      * @param type: Type that will be registered to the container
      */
-    register<T>(type: Class<T>): ComponentModelModifier
+    register<T>(type: Class<T>): ComponentModelModifier<T>
 
     /**
      * Register ComponentModel manually, this feature useful when you define your own Resolver logic
@@ -233,7 +233,7 @@ export class Container implements Kernel {
     register<T>(model: ComponentModel): void
 
 
-    register<T>(nameOrComponent: string | Class<T> | ComponentModel): ComponentRegistrar | ComponentModelModifier | void {
+    register<T>(nameOrComponent: string | Class<T> | ComponentModel): ComponentRegistrar | ComponentModelModifier<T> | void {
         if (typeof nameOrComponent == "string")
             return new ComponentRegistrar(this.models, nameOrComponent)
         else if (typeof nameOrComponent == "object") {
@@ -269,7 +269,7 @@ export class Container implements Kernel {
 /* -------------------------- TYPE INJECTION IMPLEMENTATION ---------------------- */
 /* ------------------------------------------------------------------------------- */
 
-class TypeComponentModel<T> extends ComponentModelBase {
+class TypeComponentModel<T> extends ComponentModelBase<T> {
     kind = "Type"
     name: string
     dependencies: (Class<T> | string)[]
@@ -294,7 +294,7 @@ class TypeResolver extends ResolverBase {
 /* ---------------------- INSTANCE INJECTION IMPLEMENTATION ---------------------- */
 /* ------------------------------------------------------------------------------- */
 
-class InstanceComponentModel<T> extends ComponentModelBase {
+class InstanceComponentModel<T> extends ComponentModelBase<T> {
     kind = "Instance"
     constructor(public value: T | ((kernel: Kernel) => T), public name: string) {
         super()
@@ -315,7 +315,7 @@ class InstanceResolver extends ResolverBase {
 /* ---------------------- AUTO FACTORY INJECTION IMPLEMENTATION ------------------ */
 /* ------------------------------------------------------------------------------- */
 
-class AutoFactoryComponentModel extends ComponentModelBase {
+class AutoFactoryComponentModel extends ComponentModelBase<any> {
     kind = "AutoFactory"
     constructor(public component: Class<any> | string, public name: string) {
         super()
@@ -346,20 +346,20 @@ class AutoFactoryResolver extends ResolverBase {
 export class ComponentRegistrar {
     constructor(private models: ComponentModel[], private name: string) { }
 
-    private register<T extends ComponentModel & ComponentModelModifier>(model: T): ComponentModelModifier {
+    private register<T>(model: any): ComponentModelModifier<T> {
         this.models.push(model)
         return model
     }
 
-    asType<T>(type: Class<T>): ComponentModelModifier {
+    asType<T>(type: Class<T>): ComponentModelModifier<T> {
         return this.register(new TypeComponentModel<T>(type, this.name))
     }
 
-    asInstance<T>(instance: T | ((kernel: Kernel) => T)): ComponentModelModifier {
+    asInstance<T>(instance: T | ((kernel: Kernel) => T)): ComponentModelModifier<T> {
         return this.register(new InstanceComponentModel<T>(instance, this.name))
     }
 
-    asAutoFactory<T>(component: string | Class<T>) {
+    asAutoFactory<T>(component: string | Class<T>): ComponentModelModifier<AutoFactory<T>> {
         return this.register(new AutoFactoryComponentModel(component, this.name))
     }
 }
