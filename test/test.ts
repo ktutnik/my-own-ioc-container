@@ -1,6 +1,6 @@
 import * as Chai from "chai"
 import "reflect-metadata"
-import { Container, inject, ComponentModel } from "../src/ioc-container";
+import { Container, inject, ComponentModel, AutoFactory, ComponentModelModifier } from "../src/ioc-container";
 
 describe("Container", () => {
 
@@ -15,7 +15,7 @@ describe("Container", () => {
         Chai.expect(container.resolve(Wife)).eq(wife)
         Chai.expect(container.resolve(Child)).not.eq(child)
     })
- 
+
     it("Should able to register and resolve type", () => {
         class Processor { }
         class Keyboard { }
@@ -97,10 +97,38 @@ describe("Container", () => {
         Chai.expect(computer.monitor.display instanceof RetinaDisplay).true
     })
 
+    it("Should be able to resolve auto factory", () => {
+        class Computer { }
+        const container = new Container();
+        container.register(Computer)
+        container.register("AutoFactory<Computer>").asAutoFactory(Computer)
+        const computerFactory = container.resolve<AutoFactory<Computer>>("AutoFactory<Computer>")
+        const computer = computerFactory.get()
+        Chai.expect(computer instanceof Computer).true
+    })
+
+    it("Auto factory should respect component registration life style", () => {
+        class Wife { }
+        class Child { }
+        const container = new Container()
+        container.register(Wife).singleton()
+        container.register(Child)
+        container.register("AutoFactory<Wife>").asAutoFactory(Wife)
+        container.register("AutoFactory<Child>").asAutoFactory(Child)
+        const wife = container.resolve(Wife)
+        const child = container.resolve(Child)
+        const wifeFactory = container.resolve<AutoFactory<Wife>>("AutoFactory<Wife>")
+        const childFactory = container.resolve<AutoFactory<Child>>("AutoFactory<Child>")
+        Chai.expect(container.resolve(Wife)).eq(wife)
+        Chai.expect(container.resolve(Child)).not.eq(child)
+        Chai.expect(wifeFactory.get()).eq(wife)
+        Chai.expect(childFactory.get()).not.eq(child)
+    })
+
     describe("Error Handling", () => {
         it("Should throw error if no resolver found for a kind of ComponentModel", () => {
             const container = new Container()
-            container.register(<ComponentModel>{ kind: "NotAKindOfComponent", name: "TheName", scope: "Transient" })
+            container.register(<ComponentModel & ComponentModelModifier>{ kind: "NotAKindOfComponent", name: "TheName", scope: "Transient" })
             Chai.expect(() => container.resolve("TheName")).throws("No resolver registered for component model kind of NotAKindOfComponent")
         })
 
@@ -126,5 +154,4 @@ describe("Container", () => {
             Chai.expect(() => container.resolve(Computer)).throws("Computer class require @inject.constructor() to get proper constructor parameter types")
         })
     })
-
 })

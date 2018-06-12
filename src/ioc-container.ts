@@ -70,6 +70,14 @@ export interface ComponentModel {
     scope: LifetimeScope
 }
 
+/**
+ * Factory that returned registered component
+ */
+export interface AutoFactory<T> {
+    get(): T
+}
+
+
 /* ------------------------------------------------------------------------------- */
 /* ----------------------------- CONSTANTS/CACHE --------------------------------- */
 /* ------------------------------------------------------------------------------- */
@@ -163,7 +171,7 @@ export abstract class ComponentModelBase implements ComponentModel, ComponentMod
 }
 
 export abstract class ResolverBase implements Resolver {
-    protected abstract getInstance<T>(typeInfo: ComponentModel): T
+    protected abstract getInstance(typeInfo: ComponentModel): any
     constructor(protected kernel: Kernel, protected cache: { [key: string]: any }) { }
     resolve<T>(config: ComponentModel): T {
         if (config.scope == "Singleton") {
@@ -198,8 +206,8 @@ export class Container implements Kernel {
      * Register named component, the component can be Type, Instance, Factory etc
      * @param name Name of the component
      */
-    register<T>(name: string): ComponentRegistrator
-    
+    register<T>(name: string): ComponentRegistrar
+
     /**
      * Register Type, this feature require emitDecoratorMetadata enabled on tsconfig.json
      * @param type: Type that will be registered to the container
@@ -213,9 +221,9 @@ export class Container implements Kernel {
     register<T>(model: ComponentModel): void
 
 
-    register<T>(nameOrComponent: string | Class<T> | ComponentModel): ComponentRegistrator | ComponentModelModifier | void {
+    register<T>(nameOrComponent: string | Class<T> | ComponentModel): ComponentRegistrar | ComponentModelModifier | void {
         if (typeof nameOrComponent == "string")
-            return new ComponentRegistrator(this.models, nameOrComponent)
+            return new ComponentRegistrar(this.models, nameOrComponent)
         else if (typeof nameOrComponent == "object") {
             this.models.push(nameOrComponent)
         }
@@ -274,7 +282,7 @@ export class TypeResolver extends ResolverBase {
 /* ---------------------- INSTANCE INJECTION IMPLEMENTATION ---------------------- */
 /* ------------------------------------------------------------------------------- */
 
-export class InstanceCompnentModel<T> extends ComponentModelBase {
+export class InstanceComponentModel<T> extends ComponentModelBase {
     kind = "Instance"
     constructor(public value: T | ((kernel: Kernel) => T), public name: string) {
         super()
@@ -283,7 +291,7 @@ export class InstanceCompnentModel<T> extends ComponentModelBase {
 
 @resolver("Instance")
 export class InstanceResolver extends ResolverBase {
-    protected getInstance<T>(info: InstanceCompnentModel<T>): T {
+    protected getInstance<T>(info: InstanceComponentModel<T>): T {
         if (typeof info.value == "function")
             return info.value(this.kernel)
         else
@@ -292,21 +300,51 @@ export class InstanceResolver extends ResolverBase {
 }
 
 /* ------------------------------------------------------------------------------- */
-/* ------------------------- COMPONENT REGISTRATOR ------------------------------- */
+/* ---------------------- AUTO FACTORY INJECTION IMPLEMENTATION ------------------ */
 /* ------------------------------------------------------------------------------- */
 
-export class ComponentRegistrator {
+export class AutoFactoryComponentModel extends ComponentModelBase {
+    kind = "AutoFactory"
+    constructor(public component: Class<any> | string, public name: string) {
+        super()
+    }
+}
+
+class AutoFactoryImpl<T> implements AutoFactory<T>{
+    constructor(private kernel: Kernel, private component: string | Class<T>) { }
+    get(): T {
+        return this.kernel.resolve(this.component)
+    }
+}
+
+@resolver("AutoFactory")
+export class AutoFactoryResolver extends ResolverBase {
+    protected getInstance<T>(info: AutoFactoryComponentModel) {
+        return new AutoFactoryImpl(this.kernel, info.component)
+    }
+}
+
+/* ------------------------------------------------------------------------------- */
+/* ------------------------- COMPONENT REGISTRAR ------------------------------- */
+/* ------------------------------------------------------------------------------- */
+
+export class ComponentRegistrar {
     constructor(private models: ComponentModel[], private name: string) { }
 
-    asType<T>(type: Class<T>): ComponentModelModifier {
-        const model = new TypeComponentModel<T>(type, this.name)
+    private register<T extends ComponentModel & ComponentModelModifier>(model: T): ComponentModelModifier {
         this.models.push(model)
         return model
     }
 
+    asType<T>(type: Class<T>): ComponentModelModifier {
+        return this.register(new TypeComponentModel<T>(type, this.name))
+    }
+
     asInstance<T>(instance: T | ((kernel: Kernel) => T)): ComponentModelModifier {
-        const model = new InstanceCompnentModel<T>(instance, this.name)
-        this.models.push(model)
-        return model
+        return this.register(new InstanceComponentModel<T>(instance, this.name))
+    }
+
+    asAutoFactory<T>(component: string | Class<T>) {
+        return this.register(new AutoFactoryComponentModel(component, this.name))
     }
 }
