@@ -56,7 +56,7 @@ export interface Kernel {
  */
 export interface ComponentModelModifier {
     /**
-     * Set a component model as singletone life style, default lifestyle is transient
+     * Set a component model as singleton life style, default lifestyle is transient
      */
     singleton(): ComponentModelModifier
 }
@@ -85,13 +85,14 @@ export interface AutoFactory<T> {
 /**
  * Identifier of @inject.name() decorator
  */
-const NAME_DECORATOR_KEY = "microwire:named-type"
+const NAME_DECORATOR_KEY = "my-own-ioc-container:named-type"
 
 /**
  * Registry of Resolvers will be used by Container. This constant retrieve value 
  * from @resolver decorator
  */
 const RESOLVERS: { [kind: string]: ResolverConstructor } = {}
+
 
 /* ------------------------------------------------------------------------------- */
 /* --------------------------------- HELPERS ------------------------------------- */
@@ -154,13 +155,11 @@ function resolver(kind: string) {
     }
 }
 
-
-
 /* ------------------------------------------------------------------------------- */
 /* --------------------------------- CONTAINERS ---------------------------------- */
 /* ------------------------------------------------------------------------------- */
 
-export abstract class ComponentModelBase implements ComponentModel, ComponentModelModifier {
+abstract class ComponentModelBase implements ComponentModel, ComponentModelModifier {
     abstract kind: string;
     abstract name: string;
     scope: LifetimeScope = "Transient"
@@ -170,7 +169,7 @@ export abstract class ComponentModelBase implements ComponentModel, ComponentMod
     }
 }
 
-export abstract class ResolverBase implements Resolver {
+abstract class ResolverBase implements Resolver {
     protected abstract getInstance(typeInfo: ComponentModel): any
     constructor(protected kernel: Kernel, protected cache: { [key: string]: any }) { }
     resolve<T>(config: ComponentModel): T {
@@ -257,7 +256,7 @@ export class Container implements Kernel {
 /* -------------------------- TYPE INJECTION IMPLEMENTATION ---------------------- */
 /* ------------------------------------------------------------------------------- */
 
-export class TypeComponentModel<T> extends ComponentModelBase {
+class TypeComponentModel<T> extends ComponentModelBase {
     kind = "Type"
     name: string
     dependencies: (Class<T> | string)[]
@@ -269,7 +268,7 @@ export class TypeComponentModel<T> extends ComponentModelBase {
 }
 
 @resolver("Type")
-export class TypeResolver extends ResolverBase {
+class TypeResolver extends ResolverBase {
     protected getInstance<T>(config: TypeComponentModel<T>): T {
         if (config.type.length > 0 && config.dependencies.length == 0)
             throw new Error(`${config.type.prototype.constructor.name} class require @inject.constructor() to get proper constructor parameter types`)
@@ -282,7 +281,7 @@ export class TypeResolver extends ResolverBase {
 /* ---------------------- INSTANCE INJECTION IMPLEMENTATION ---------------------- */
 /* ------------------------------------------------------------------------------- */
 
-export class InstanceComponentModel<T> extends ComponentModelBase {
+class InstanceComponentModel<T> extends ComponentModelBase {
     kind = "Instance"
     constructor(public value: T | ((kernel: Kernel) => T), public name: string) {
         super()
@@ -290,7 +289,7 @@ export class InstanceComponentModel<T> extends ComponentModelBase {
 }
 
 @resolver("Instance")
-export class InstanceResolver extends ResolverBase {
+class InstanceResolver extends ResolverBase {
     protected getInstance<T>(info: InstanceComponentModel<T>): T {
         if (typeof info.value == "function")
             return info.value(this.kernel)
@@ -303,13 +302,16 @@ export class InstanceResolver extends ResolverBase {
 /* ---------------------- AUTO FACTORY INJECTION IMPLEMENTATION ------------------ */
 /* ------------------------------------------------------------------------------- */
 
-export class AutoFactoryComponentModel extends ComponentModelBase {
+class AutoFactoryComponentModel extends ComponentModelBase {
     kind = "AutoFactory"
     constructor(public component: Class<any> | string, public name: string) {
         super()
     }
 }
 
+/**
+ * The AutoFactoryClass implementation that will be returned when register component using asAutoFactory
+ */
 class AutoFactoryImpl<T> implements AutoFactory<T>{
     constructor(private kernel: Kernel, private component: string | Class<T>) { }
     get(): T {
@@ -318,7 +320,7 @@ class AutoFactoryImpl<T> implements AutoFactory<T>{
 }
 
 @resolver("AutoFactory")
-export class AutoFactoryResolver extends ResolverBase {
+class AutoFactoryResolver extends ResolverBase {
     protected getInstance<T>(info: AutoFactoryComponentModel) {
         return new AutoFactoryImpl(this.kernel, info.component)
     }
