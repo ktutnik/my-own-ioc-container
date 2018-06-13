@@ -43,15 +43,10 @@ To use My Own IoC Container required you to use TypeScript with below `tsconfig.
 
 All above configuration is required.
 
-## Dependency
-None
-
-## Installation
-Download or copy the [file](https://raw.githubusercontent.com/ktutnik/my-own-ioc-container/master/src/ioc-container.ts) then drop it inside your project than you go.
-
 # Features
 My Own IoC Container support most of common IoC Container features:
 
+- [x] Single file, copy - paste able, less then 15kb/300 lines of code
 - [x] Supported Singleton and Transient lifestyle (Transient is default)
 - [x] Constructor injection
 - [x] Inject by type
@@ -60,18 +55,30 @@ My Own IoC Container support most of common IoC Container features:
 - [x] Inject instance with factory function
 - [x] Inject Auto factory 
 - [x] Component creation hook
+- [ ] Collection injection / Multi injection
+- [ ] Circular dependency graph analysis
 
 Things that will not supported because it introduce more code base and complexity
-* Dependency graph analysis such as circular dependency, captive dependency etc
+* Advanced dependency graph analysis such as captive dependency etc
 * Child container
-* Interception (use Component creation hook with Proxy or other proxy framework such as [Benalu](https://github.com/ktutnik/benalu))
-* Multiple injection 
+* Built in interception, see how you can implement interception using Benalu [here](#oncreated-hook-and-interception)
+
+# How to Use it
+
+## Installation
+Install reflect-metadata on your project
+
+```
+npm install reflect-metadata
+```
+
+Download or copy the [file](https://raw.githubusercontent.com/ktutnik/my-own-ioc-container/master/src/ioc-container.ts) then drop it inside your project than you go.
 
 ## Constructor Injection
 Decorate class with `@inject.constructor()` to automatically inject registered type to the constructor parameters. You don't need to specify more configuration, the container has enough information about parameter type of the class as long as you enable the `emitDecoratorMetadata:true` in the `tsconfig.json` file. Keep in mind this automatic type detection only work for parameter of type ES6 classes.
 
 ```typescript
-import { Container } from "./ioc-container"
+import { inject, Container } from "./ioc-container"
 
 class JetEngine { }
 
@@ -79,6 +86,29 @@ class JetEngine { }
 class Plane {
     constructor(private engine:JetEngine){}
 }
+
+const container = new Container()
+container.register(JetEngine)
+container.register(Plane)
+
+const plane = container.resolve(Plane)
+```
+
+## Constructor Injection on Super Class
+If you want to register a class with default constructor (without specifying constructor on the class body) but the constructor itself stays in the base class which is parameterized. You need to decorate the base class with `@inject.constructor()`, registering the baseclass is optional, if you don't need it in the container you can skip registering the baseclass.
+
+```typescript
+import { inject, Container } from "./ioc-container"
+
+class JetEngine { }
+
+//the base class has parameterized constructor
+@inject.constructor()
+abstract class AbstractPlane {
+    constructor(private engine:JetEngine){}
+}
+//the implementation class doesn't specify constructor (default constructor)
+class Plane extends AbstractPlane {}
 
 const container = new Container()
 container.register(JetEngine)
@@ -109,6 +139,7 @@ const plane = container.resolve(Plane)
 ```
 
 > You can also resolve named type by specifying name of the type `container.resolve("Engine")`
+> 
 
 ## Instance Injection
 Sometime its not possible for you to register type because you need to manually instantiate the type. You can do it like below
@@ -293,3 +324,5 @@ Computer ready
 ```
 
 Above code showing that we intercept the execution of `Computer.start()` method adding console log before and after execution.
+
+> Second parameter of the `onCreated` method is instance of `Kernel`

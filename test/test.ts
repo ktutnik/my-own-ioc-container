@@ -1,7 +1,9 @@
-import * as Chai from "chai"
-import "reflect-metadata"
-import * as Benalu from "benalu"
-import { Container, inject, ComponentModel, AutoFactory, ComponentModelModifier } from "../src/ioc-container";
+import "reflect-metadata";
+
+import * as Benalu from "benalu";
+import * as Chai from "chai";
+
+import { AutoFactory, Container, inject, ComponentModel } from "../src/ioc-container";
 
 describe("Container", () => {
 
@@ -32,6 +34,28 @@ describe("Container", () => {
         container.register(Computer)
         const computer = container.resolve(Computer)
         Chai.expect(computer instanceof Computer).true
+        Chai.expect(computer.processor instanceof Processor).true
+        Chai.expect(computer.monitor instanceof Monitor).true
+        Chai.expect(computer.keyboard instanceof Keyboard).true
+    })
+
+    it("Should be able to resolve type which the constructor with parameters is in base class", () => {
+        class Processor { }
+        class Keyboard { }
+        class Monitor { }
+        @inject.constructor()
+        class Computer {
+            constructor(public processor: Processor, public keyboard: Keyboard, public monitor: Monitor) { }
+        }
+        class AppleComputer extends Computer {}
+        const container = new Container();
+        container.register(Processor)
+        container.register(Keyboard)
+        container.register(Monitor)
+        container.register(AppleComputer)
+        const computer = container.resolve(AppleComputer)
+        Chai.expect(computer instanceof Computer).true
+        Chai.expect(computer instanceof AppleComputer).true
         Chai.expect(computer.processor instanceof Processor).true
         Chai.expect(computer.monitor instanceof Monitor).true
         Chai.expect(computer.keyboard instanceof Keyboard).true

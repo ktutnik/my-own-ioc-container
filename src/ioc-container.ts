@@ -43,7 +43,7 @@ type ResolverConstructor = new (kernel: Kernel, cache: { [key: string]: any }) =
 /**
  * Abstraction of container which only expose resolve<T>() method
  */
-export interface Kernel {
+interface Kernel {
     /**
      * Resolve a registered component
      * @param type Type or Name of the component that will be resolved
@@ -54,28 +54,28 @@ export interface Kernel {
 /**
  * ComponentModel modifier that will be exposed on fluent registration
  */
-export interface ComponentModelModifier<T> {
+interface ComponentModelModifier<T> {
     /**
      * Set a component model as singleton life style, default lifestyle is transient
      */
     singleton(): ComponentModelModifier<T>
-    onCreated(callback: (instance: T) => T): ComponentModelModifier<T>
+    onCreated(callback: (instance: T, kernel: Kernel) => T): ComponentModelModifier<T>
 }
 
 /**
  * Abstraction of ComponentModel
  */
-export interface ComponentModel {
+interface ComponentModel {
     kind: string,
     name: string,
     scope: LifetimeScope
-    onCreatedCallback?: (instance:any) => any
+    onCreatedCallback?: (instance: any, kernel: Kernel) => any
 }
 
 /**
  * Factory that returned registered component
  */
-export interface AutoFactory<T> {
+interface AutoFactory<T> {
     get(): T
 }
 
@@ -109,6 +109,7 @@ function getMetadata<T>(key: string, target: any) {
     return (<T[]>Reflect.getMetadata(key, target) || [])
 }
 
+
 /**
  * Extract constructor parameters, the result can be Type of TypeName specified by @inject.name() decorator
  * @param target Target type
@@ -125,11 +126,24 @@ function getConstructorParameters(target: Class<any>) {
     })
 }
 
+/**
+ * Traverse constructor parameters through the base class
+ * @param target Target class
+ */
+function traverseConstructorParameters(target: Class<any>): (string | Class<any>)[] {
+    //found parameterized constructor
+    if (target.length > 0) return getConstructorParameters(target)
+    //we are on the top of 
+    if (!Boolean(target.prototype)) return []
+    else
+        return traverseConstructorParameters(Object.getPrototypeOf(target))
+}
+
 /* ------------------------------------------------------------------------------- */
 /* --------------------------------- DECORATORS ---------------------------------- */
 /* ------------------------------------------------------------------------------- */
 
-export namespace inject {
+namespace inject {
     /**
      * Inject constructor parameters of class with appropriate parameters type instance
      */
@@ -165,13 +179,13 @@ abstract class ComponentModelBase<T> implements ComponentModel, ComponentModelMo
     abstract kind: string;
     abstract name: string;
     scope: LifetimeScope = "Transient"
-    onCreatedCallback?: (instance: any) => any;
+    onCreatedCallback?: (instance: any, kernel: Kernel) => any;
     singleton(): ComponentModelModifier<T> {
         this.scope = "Singleton"
         return this
     }
 
-    onCreated(callback: (instance: T) => T): ComponentModelModifier<T> {
+    onCreated(callback: (instance: T, kernel: Kernel) => T): ComponentModelModifier<T> {
         this.onCreatedCallback = callback
         return this
     }
@@ -187,15 +201,15 @@ abstract class ResolverBase implements Resolver {
             return cache
         }
         else {
-            if(component.onCreatedCallback)
-                return component.onCreatedCallback(this.getInstance(component))
+            if (component.onCreatedCallback)
+                return component.onCreatedCallback(this.getInstance(component), this.kernel)
             else
                 return this.getInstance(component)
-        } 
+        }
     }
 }
 
-export class Container implements Kernel {
+class Container implements Kernel {
     private singletonCache: { [name: string]: any } = {}
     private models: ComponentModel[] = []
     private resolver: { [kind: string]: Resolver } = {}
@@ -276,7 +290,7 @@ class TypeComponentModel<T> extends ComponentModelBase<T> {
     constructor(public type: Class<T>, name?: string) {
         super()
         this.name = name || type.prototype.constructor.name
-        this.dependencies = getConstructorParameters(type)
+        this.dependencies = traverseConstructorParameters(type)
     }
 }
 
@@ -343,7 +357,7 @@ class AutoFactoryResolver extends ResolverBase {
 /* ------------------------- COMPONENT REGISTRAR ------------------------------- */
 /* ------------------------------------------------------------------------------- */
 
-export class ComponentRegistrar {
+class ComponentRegistrar {
     constructor(private models: ComponentModel[], private name: string) { }
 
     private register<T>(model: any): ComponentModelModifier<T> {
@@ -362,4 +376,15 @@ export class ComponentRegistrar {
     asAutoFactory<T>(component: string | Class<T>): ComponentModelModifier<AutoFactory<T>> {
         return this.register(new AutoFactoryComponentModel(component, this.name))
     }
+}
+
+
+export {
+    Kernel,
+    ComponentModelModifier,
+    AutoFactory,
+    inject,
+    Container,
+    ComponentRegistrar,
+    ComponentModel
 }
