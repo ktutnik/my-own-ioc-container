@@ -7,14 +7,14 @@ import "reflect-metadata";
 /**
  * Alias for constructor of type of T
  */
-export type Class<T> = new (...args: any[]) => T
+type Class<T> = new (...args: any[]) => T
 
 /**
  * Life time style of component. 
  * Singleton: the same instance returned on each resolve. 
  * Transient: different instance returned on each resolve (default registration)
  */
-export type LifetimeScope = "Singleton" | "Transient"
+type LifetimeScope = "Singleton" | "Transient"
 
 /**
  * Internal use, interface which contains of index and name
@@ -378,6 +378,8 @@ class ComponentRegistrar {
 
 
 export {
+    Class,
+    LifetimeScope,
     Kernel,
     ComponentModelModifier,
     AutoFactory,
