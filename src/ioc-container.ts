@@ -121,7 +121,7 @@ function getConstructorParameters(target: Class<any>) {
     const decorators = getMetadata<IndexNameType>(NAME_DECORATOR_KEY, target).reverse()
     //the @name decorator has highest priority so return the binding name if the parameter has @name decorator
     return parameterTypes.map((x, i) => {
-        const decorator = decorators[i]
+        const decorator = decorators.filter(x => x.index == i)[0]
         return decorator ? decorator.name : x
     })
 }
@@ -297,8 +297,6 @@ class TypeComponentModel<T> extends ComponentModelBase<T> {
 @resolver("Type")
 class TypeResolver extends ResolverBase {
     protected getInstance<T>(config: TypeComponentModel<T>): T {
-        if (config.type.length > 0 && config.dependencies.length == 0)
-            throw new Error(`${config.type.prototype.constructor.name} class require @inject.constructor() to get proper constructor parameter types`)
         return new config.type(...config.dependencies.map(x => this.kernel.resolve(x)))
     }
 }

@@ -6,20 +6,7 @@ import * as Chai from "chai";
 import { AutoFactory, Container, inject, ComponentModel } from "../src/ioc-container";
 
 describe("Container", () => {
-
-    it("Should resolve with scope Transient/Singleton properly", () => {
-        class Wife { }
-        class Child { }
-        const container = new Container()
-        container.register(Wife).singleton()
-        container.register(Child)
-        const wife = container.resolve(Wife)
-        const child = container.resolve(Child)
-        Chai.expect(container.resolve(Wife)).eq(wife)
-        Chai.expect(container.resolve(Child)).not.eq(child)
-    })
-
-    it("Should able to register and resolve type", () => {
+    it("Should able resolve basic constructor injection", () => {
         class Processor { }
         class Keyboard { }
         class Monitor { }
@@ -39,26 +26,32 @@ describe("Container", () => {
         Chai.expect(computer.keyboard instanceof Keyboard).true
     })
 
-    it("Should be able to resolve type which the constructor with parameters is in base class", () => {
+    it("Should be able to resolve type with default constructor which uses base class constructor", () => {
         class Processor { }
-        class Keyboard { }
-        class Monitor { }
         @inject.constructor()
         class Computer {
-            constructor(public processor: Processor, public keyboard: Keyboard, public monitor: Monitor) { }
+            constructor(public processor: Processor) { }
         }
-        class AppleComputer extends Computer {}
+        class AppleComputer extends Computer { }
         const container = new Container();
         container.register(Processor)
-        container.register(Keyboard)
-        container.register(Monitor)
         container.register(AppleComputer)
         const computer = container.resolve(AppleComputer)
         Chai.expect(computer instanceof Computer).true
         Chai.expect(computer instanceof AppleComputer).true
         Chai.expect(computer.processor instanceof Processor).true
-        Chai.expect(computer.monitor instanceof Monitor).true
-        Chai.expect(computer.keyboard instanceof Keyboard).true
+    })
+
+    it("Should resolve with scope Transient/Singleton properly", () => {
+        class Wife { }
+        class Child { }
+        const container = new Container()
+        container.register(Wife).singleton()
+        container.register(Child)
+        const wife = container.resolve(Wife)
+        const child = container.resolve(Child)
+        Chai.expect(container.resolve(Wife)).eq(wife)
+        Chai.expect(container.resolve(Child)).not.eq(child)
     })
 
     it("Should able to register and resolve interface/named type", () => {
@@ -66,19 +59,18 @@ describe("Container", () => {
         class Intel implements Processor { }
         interface Keyboard { }
         class Logitech implements Keyboard { }
-        interface Monitor { }
-        class LGMonitor implements Monitor { }
+        class LGMonitor { }
         @inject.constructor()
         class Computer {
             constructor(
                 @inject.name("Processor") public processor: Processor,
-                @inject.name("Keyboard") public keyboard: Keyboard,
-                @inject.name("Monitor") public monitor: Monitor) { }
+                public monitor: LGMonitor,
+                @inject.name("Keyboard") public keyboard: Keyboard) { }
         }
         const container = new Container();
         container.register("Processor").asType(Intel)
         container.register("Keyboard").asType(Logitech)
-        container.register("Monitor").asType(LGMonitor)
+        container.register(LGMonitor)
         container.register(Computer)
         const computer = container.resolve(Computer)
         Chai.expect(computer instanceof Computer).true
@@ -207,7 +199,7 @@ describe("Container", () => {
         container.register(Computer)
             .onCreated(instance => Benalu.fromInstance(instance)
                 .addInterception(i => {
-                    if(i.memberName == "start"){
+                    if (i.memberName == "start") {
                         console.log("Before starting computer...")
                         i.proceed()
                         console.log("Computer ready")
@@ -233,17 +225,6 @@ describe("Container", () => {
         it("Should inform if a named type not registered in the container", () => {
             const container = new Container()
             Chai.expect(() => container.resolve("Computer")).throw("Trying to resolve Computer, but its not registered in the container")
-        })
-
-        it("Should inform if type that has parameterized constructor but has lack of @inject.constructor() decorator", () => {
-            class LGMonitor { }
-            class Computer {
-                constructor(public monitor: LGMonitor) { }
-            }
-            const container = new Container();
-            container.register(LGMonitor)
-            container.register(Computer)
-            Chai.expect(() => container.resolve(Computer)).throws("Computer class require @inject.constructor() to get proper constructor parameter types")
         })
     })
 })
