@@ -52,7 +52,7 @@ All above configuration is required.
 # Features
 My Own IoC Container support most of common IoC Container features:
 
-- [x] Single file, copy - paste able, less then 15kb/300 lines of code
+- [x] Single file, copy - paste able, less then 15kb/400 lines of code
 - [x] Lifestyle support: Singleton and Transient (Transient is default)
 - [x] Constructor injection
 - [x] Inject by type
@@ -61,8 +61,8 @@ My Own IoC Container support most of common IoC Container features:
 - [x] Inject instance with factory function
 - [x] Inject Auto factory 
 - [x] Component creation hook
-- [ ] Collection injection / Multi injection
-- [ ] Circular dependency graph analysis
+- [x] Dependency graph analysis for non registered component
+- [x] Dependency graph analysis for circular dependency
 
 Things that will not supported because it introduce more code base and complexity
 * Advanced dependency graph analysis such as captive dependency etc

@@ -4,81 +4,28 @@ import "reflect-metadata";
 /* --------------------------------- TYPES --------------------------------------- */
 /* ------------------------------------------------------------------------------- */
 
-/**
- * Alias for constructor of type of T
- */
 type Class<T> = new (...args: any[]) => T
-
-/**
- * Life time style of component. 
- * Singleton: the same instance returned on each resolve. 
- * Transient: different instance returned on each resolve (default registration)
- */
 type LifetimeScope = "Singleton" | "Transient"
-
-/**
- * Internal use, interface which contains of index and name
- */
-interface IndexNameType {
-    index: number,
-    name: string
-}
-
-/**
- * Internal use, Abstraction of resolver type
- */
-interface Resolver {
-    /**
-     * Resolve a registered component model
-     * @param config ComponentModel that will be resolved
-     */
-    resolve<T>(config: ComponentModel): T
-}
-
-/**
- * Alias type for ResolverBase constructor
- */
 type ResolverConstructor = new (kernel: Kernel, cache: { [key: string]: any }) => Resolver
 
-/**
- * Abstraction of container which only expose resolve<T>() method
- */
-interface Kernel {
-    /**
-     * Resolve a registered component
-     * @param type Type or Name of the component that will be resolved
-     */
-    resolve<T>(type: Class<T> | string): T
-}
+interface IndexNameType { index: number, name: string }
+interface Resolver { resolve<T>(config: ComponentModel): T }
+interface Kernel { resolve<T>(type: Class<T> | string): T }
+interface AutoFactory<T> { get(): T }
+interface Analyzer { analyze(path: (string | Class<any>)[], model?: ComponentModel): string | undefined }
 
-/**
- * ComponentModel modifier that will be exposed on fluent registration
- */
 interface ComponentModelModifier<T> {
-    /**
-     * Set a component model as singleton life style, default lifestyle is transient
-     */
-    singleton(): ComponentModelModifier<T>
+    singleton(): ComponentModelModifier<T>,
     onCreated(callback: (instance: T, kernel: Kernel) => T): ComponentModelModifier<T>
 }
 
-/**
- * Abstraction of ComponentModel
- */
 interface ComponentModel {
     kind: string,
     name: string,
-    scope: LifetimeScope
+    scope: LifetimeScope,
+    analyzed: boolean
     onCreatedCallback?: (instance: any, kernel: Kernel) => any
 }
-
-/**
- * Factory that returned registered component
- */
-interface AutoFactory<T> {
-    get(): T
-}
-
 
 /* ------------------------------------------------------------------------------- */
 /* ----------------------------- CONSTANTS/CACHE --------------------------------- */
@@ -89,10 +36,6 @@ interface AutoFactory<T> {
  */
 const NAME_DECORATOR_KEY = "my-own-ioc-container:named-type"
 
-/**
- * Registry of Resolvers will be used by Container. This constant retrieve value 
- * from @resolver decorator
- */
 const RESOLVERS: { [kind: string]: ResolverConstructor } = {}
 
 
@@ -139,6 +82,10 @@ function traverseConstructorParameters(target: Class<any>): (string | Class<any>
         return traverseConstructorParameters(Object.getPrototypeOf(target))
 }
 
+function getComponentName(component: string | Class<any>) {
+    return typeof component == "string" ? component : component.prototype.constructor.name
+}
+
 /* ------------------------------------------------------------------------------- */
 /* --------------------------------- DECORATORS ---------------------------------- */
 /* ------------------------------------------------------------------------------- */
@@ -161,10 +108,6 @@ namespace inject {
     }
 }
 
-/**
- * Only for internal use. Register resolver thus automatically added to the Container
- * @param kind Kind of resolver, will automatically match with ComponentModel.kind
- */
 function resolver(kind: string) {
     return (target: ResolverConstructor) => {
         RESOLVERS[kind] = target
@@ -178,13 +121,13 @@ function resolver(kind: string) {
 abstract class ComponentModelBase<T> implements ComponentModel, ComponentModelModifier<T> {
     abstract kind: string;
     abstract name: string;
+    analyzed: boolean = false;
     scope: LifetimeScope = "Transient"
     onCreatedCallback?: (instance: any, kernel: Kernel) => any;
     singleton(): ComponentModelModifier<T> {
         this.scope = "Singleton"
         return this
     }
-
     onCreated(callback: (instance: T, kernel: Kernel) => T): ComponentModelModifier<T> {
         this.onCreatedCallback = callback
         return this
@@ -209,10 +152,75 @@ abstract class ResolverBase implements Resolver {
     }
 }
 
+class DependencyGraphAnalyzer {
+    constructor(private models: ComponentModel[]) { }
+    
+    private getModelByNameOrType(type: string | Class<any>): ComponentModel | undefined {
+        const filter = (x: ComponentModel) =>
+            typeof type == "function" && x instanceof TypeComponentModel ?
+                x.type == type : x.name == type
+        return this.models.filter(filter)[0]
+    }
+
+    private traverseAnalyze(path: (string | Class<any>)[], model?: ComponentModel): string | undefined {
+        /*
+        Traverse component model recursively to get issue in dependency graph
+        path: is traversal path for example:
+            class A {}
+            class B { constructor(a:A){} }
+            class C {}
+            class D { constructor(b:B, c:C){} }
+            if we traverse through D then the path will be:
+            1: [D, B, A]
+            2: [D, C]
+
+        model: the current model
+        */
+        if (model && model.analyzed) return
+        const curName = getComponentName(path[path.length - 1])
+        const curPath = path.map(x => getComponentName(x)).join(" -> ")
+        if (!model) return `Trying to resolve ${curPath} but ${curName} is not registered in container`
+        else {
+            if (this.hasCircularDependency(path, model)) return `Circular dependency detected on: ${curPath}`
+            if (model instanceof TypeComponentModel) {
+                for (let dependency of model.dependencies) {
+                    path.push(dependency)
+                    const analysis = this.traverseAnalyze(path, this.getModelByNameOrType(dependency))
+                    if (analysis) return analysis
+                }
+            }
+        }
+    }
+
+    private hasCircularDependency(path: (string | Class<any>)[], model: ComponentModel){
+        /*
+        Graph has circular dependency if the model is inside the path exclude the last path.
+        Example:
+            path: [Computer, LGMonitor], model: {type: LGMonitor}           -> Not Circular
+            path: [Computer, Computer], model: {type: Computer}             -> Circular 
+            path: [Computer, LGMonitor, Computer], model: {type: Computer}  -> Circular
+            path: [Computer], model: {type:Computer}                        -> Not Circular
+        */
+        const matchName = (x: string | Class<any>) => (typeof x == "string" && x == model.name)
+        const matchType = (x: string | Class<any>) => (typeof x == "function" && model instanceof TypeComponentModel && x == model.type)
+        //exclude the last path
+        const testPath = path.slice(0, -1)
+        //check if the model is inside path
+        return (testPath.some(matchName) || testPath.some(matchType))
+    }
+
+    analyze(request: string | Class<any>) {
+        const model = this.getModelByNameOrType(request)
+        const analysis = this.traverseAnalyze([request], model)
+        if (analysis) throw new Error(analysis)
+    }
+}
+
 class Container implements Kernel {
     private singletonCache: { [name: string]: any } = {}
     private models: ComponentModel[] = []
     private resolver: { [kind: string]: Resolver } = {}
+    private analyzer: DependencyGraphAnalyzer
 
     constructor() {
         //setup all registered RESOLVERS
@@ -220,12 +228,14 @@ class Container implements Kernel {
         Object.keys(RESOLVERS).forEach(x => {
             this.resolver[x] = new RESOLVERS[x](this, this.singletonCache)
         })
+        this.analyzer = new DependencyGraphAnalyzer(this.models)
     }
 
-    private resolveModel<T>(model: ComponentModel): T {
-        const resolver = this.resolver[model.kind]
-        if (!resolver) throw new Error(`No resolver registered for component model kind of ${model.kind}`)
-        return resolver.resolve(model)
+    private getModelByNameOrType(type: string | Class<any>): ComponentModel | undefined {
+        const filter = (x: ComponentModel) =>
+            typeof type == "function" && x instanceof TypeComponentModel ?
+                x.type == type : x.name == type
+        return this.models.filter(filter)[0]
     }
 
     /**
@@ -260,21 +270,19 @@ class Container implements Kernel {
         }
     }
 
+    private resolveModel<T>(model: ComponentModel): T {
+        const resolver = this.resolver[model.kind]
+        if (!resolver) throw new Error(`No resolver registered for component model kind of ${model.kind}`)
+        return resolver.resolve(model)
+    }
+
     /**
-     * Resolve a registered component
-     * @param type Type or Name of the component that will be resolved
-     */
+      * Resolve a registered component
+      * @param type Type or Name of the component that will be resolved
+      */
     resolve<T>(type: Class<T> | string): T {
-        if (typeof type == "string") {
-            const model = this.models.filter(x => x.name == type)[0];
-            if (!model) throw Error(`Trying to resolve ${type}, but its not registered in the container`)
-            return this.resolveModel(model)
-        }
-        else {
-            const model = this.models.filter(x => x.kind == "Type" && x instanceof TypeComponentModel && x.type == type)[0]
-            if (!model) throw Error(`Trying to resolve type of ${type.prototype.constructor.name}, but its not registered in the container`)
-            return this.resolveModel(model)
-        }
+        this.analyzer.analyze(type)
+        return this.resolveModel(this.getModelByNameOrType(type)!)
     }
 }
 
@@ -386,5 +394,9 @@ export {
     inject,
     Container,
     ComponentRegistrar,
-    ComponentModel
+    ComponentModel,
+    DependencyGraphAnalyzer,
+    TypeComponentModel,
+    InstanceComponentModel,
+    AutoFactoryComponentModel
 }

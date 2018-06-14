@@ -3,7 +3,127 @@ import "reflect-metadata";
 import * as Benalu from "benalu";
 import * as Chai from "chai";
 
-import { AutoFactory, Container, inject, ComponentModel } from "../src/ioc-container";
+import {
+    AutoFactory,
+    AutoFactoryComponentModel,
+    ComponentModel,
+    Container,
+    DependencyGraphAnalyzer,
+    inject,
+    InstanceComponentModel,
+    TypeComponentModel,
+} from "../src/ioc-container";
+
+describe("DependencyGraphAnalyzer", () => {
+    it("Should identify proper registered components", () => {
+        class LCDScreen { }
+        @inject.constructor()
+        class Monitor {
+            constructor(screen: LCDScreen) { }
+        }
+        @inject.constructor()
+        class Computer {
+            constructor(monitor: Monitor) { }
+        }
+
+        const analyzer = new DependencyGraphAnalyzer([
+            new TypeComponentModel(LCDScreen),
+            new TypeComponentModel(Monitor),
+            new TypeComponentModel(Computer)
+        ])
+        Chai.expect(analyzer.analyze(Computer)).undefined
+    })
+
+    it("Should OK with other type of component model than TypeComponentModel", () => {
+        class LCDScreen { }
+        @inject.constructor()
+        class Monitor {
+            constructor(@inject.name("LCD") screen: any) { }
+        }
+        @inject.constructor()
+        class Computer {
+            constructor(@inject.name("MonitorFactory") monitor: any) { }
+        }
+
+        const analyzer = new DependencyGraphAnalyzer([
+            new InstanceComponentModel(new LCDScreen(), "LCD"),
+            new AutoFactoryComponentModel(Monitor, "MonitorFactory"),
+            new TypeComponentModel(Computer, "Computer")
+        ])
+        Chai.expect(analyzer.analyze(Computer)).undefined
+
+    })
+
+    it("Should identify non registered component", () => {
+        const analyzer = new DependencyGraphAnalyzer([])
+        Chai.expect(() => analyzer.analyze("MyComponent")).throws("Trying to resolve MyComponent but MyComponent is not registered in container")
+    })
+
+    it("Should identify non registered component in depth dependency", () => {
+        class LCDScreen { }
+        @inject.constructor()
+        class Monitor {
+            constructor(screen: LCDScreen) { }
+        }
+        @inject.constructor()
+        class Computer {
+            constructor(monitor: Monitor) { }
+        }
+
+        const analyzer = new DependencyGraphAnalyzer([
+            //LCDScreen not registered
+            new TypeComponentModel(Monitor),
+            new TypeComponentModel(Computer)
+        ])
+        Chai.expect(() => analyzer.analyze(Computer)).throws("Trying to resolve Computer -> Monitor -> LCDScreen but LCDScreen is not registered in container")
+    })
+
+    it("Should identify circular dependency", () => {
+        @inject.constructor()
+        class LCDScreen {
+            constructor(@inject.name("Computer") computer: any) { }
+        }
+        @inject.constructor()
+        class Monitor {
+            constructor(screen: LCDScreen) { }
+        }
+        @inject.constructor()
+        class Computer {
+            constructor(monitor: Monitor) { }
+        }
+
+        const analyzer = new DependencyGraphAnalyzer([
+            new TypeComponentModel(LCDScreen),
+            new TypeComponentModel(Monitor),
+            new TypeComponentModel(Computer, "Computer")
+        ])
+        Chai.expect(() => analyzer.analyze("Computer")).throws("Circular dependency detected on: Computer -> Monitor -> LCDScreen -> Computer")
+    })
+
+    it("Should skip analysis of already analyzed component", () => {
+        @inject.constructor()
+        class LCDScreen {
+            constructor(@inject.name("Computer") computer: any) { }
+        }
+        @inject.constructor()
+        class Monitor {
+            constructor(screen: LCDScreen) { }
+        }
+        @inject.constructor()
+        class Computer {
+            constructor(monitor: Monitor) { }
+        }
+
+        const lcdComp = new TypeComponentModel(LCDScreen)
+        lcdComp.analyzed = true
+        const analyzer = new DependencyGraphAnalyzer([
+            lcdComp,
+            new TypeComponentModel(Monitor),
+            new TypeComponentModel(Computer, "Computer")
+        ])
+        Chai.expect(analyzer.analyze("Computer")).undefined
+    })
+})
 
 describe("Container", () => {
     it("Should able resolve basic constructor injection", () => {
@@ -196,17 +316,22 @@ describe("Container", () => {
             }
         }
         const container = new Container();
+        let count = 0;
         container.register(Computer)
             .onCreated(instance => Benalu.fromInstance(instance)
                 .addInterception(i => {
                     if (i.memberName == "start") {
+                        count++
                         console.log("Before starting computer...")
                         i.proceed()
+                        count++
                         console.log("Computer ready")
                     }
                 }).build())
         const computer = container.resolve(Computer)
         computer.start()
+        Chai.expect(computer instanceof Computer).true
+        Chai.expect(count).eq(2)
     })
 
     describe("Error Handling", () => {
@@ -219,12 +344,32 @@ describe("Container", () => {
         it("Should inform if a type not registered in the container", () => {
             class Computer { }
             const container = new Container()
-            Chai.expect(() => container.resolve(Computer)).throw("Trying to resolve type of Computer, but its not registered in the container")
+            Chai.expect(() => container.resolve(Computer)).throw("Trying to resolve Computer but Computer is not registered in container")
         })
 
         it("Should inform if a named type not registered in the container", () => {
             const container = new Container()
-            Chai.expect(() => container.resolve("Computer")).throw("Trying to resolve Computer, but its not registered in the container")
+            Chai.expect(() => container.resolve("Computer")).throw("Trying to resolve Computer but Computer is not registered in container")
+        })
+
+        it("Should inform circular dependency", () => {
+            @inject.constructor()
+            class LCDScreen {
+                constructor(@inject.name("Computer") computer: any) { }
+            }
+            @inject.constructor()
+            class Monitor {
+                constructor(screen: LCDScreen) { }
+            }
+            @inject.constructor()
+            class Computer {
+                constructor(monitor: Monitor) { }
+            }
+            const container = new Container()
+            container.register(LCDScreen)
+            container.register(Monitor)
+            container.register("Computer").asType(Computer)
+            Chai.expect(() => container.resolve("Computer")).throws("Circular dependency detected on: Computer -> Monitor -> LCDScreen -> Computer")
         })
     })
 })
