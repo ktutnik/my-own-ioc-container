@@ -27,7 +27,7 @@ Check installation part to make My Own IoC Container become Your Own IoC Contain
 
 
 ## Prerequisites
-First prerequisites is you need to understand how My Own IoC Container work, believe me its easier than its look.
+First prerequisites is you need to understand how My Own IoC Container work, refer to [How Its Work](how-its-work.md), believe me its easier than you thing.
 
 To use My Own IoC Container required you to use TypeScript with below `tsconfig.json`:
 
