@@ -15,18 +15,22 @@ import {
 } from "../src/ioc-container";
 
 describe("DependencyGraphAnalyzer", () => {
-    it("Should identify proper registered components", () => {
+    it.only("Should identify proper registered components", () => {
         class LCDScreen { }
         @inject.constructor()
         class Monitor {
             constructor(screen: LCDScreen) { }
         }
+        class Keyboard {}
+        class Mouse{}
         @inject.constructor()
         class Computer {
-            constructor(monitor: Monitor) { }
+            constructor(monitor: Monitor, extensionMonitor:Monitor, keyboard:Keyboard, mouse:Mouse) { }
         }
 
         const analyzer = new DependencyGraphAnalyzer([
+            new TypeComponentModel(Keyboard),
+            new TypeComponentModel(Mouse),
             new TypeComponentModel(LCDScreen),
             new TypeComponentModel(Monitor),
             new TypeComponentModel(Computer)

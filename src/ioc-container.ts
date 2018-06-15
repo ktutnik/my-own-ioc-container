@@ -184,8 +184,8 @@ class DependencyGraphAnalyzer {
             if (this.hasCircularDependency(path, model)) return `Circular dependency detected on: ${curPath}`
             if (model instanceof TypeComponentModel) {
                 for (let dependency of model.dependencies) {
-                    path.push(dependency)
-                    const analysis = this.traverseAnalyze(path, this.getModelByNameOrType(dependency))
+                    const analysis = this.traverseAnalyze(path.concat(dependency), this.getModelByNameOrType(dependency))
+                    model.analyzed = true
                     if (analysis) return analysis
                 }
             }
