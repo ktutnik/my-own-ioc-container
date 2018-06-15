@@ -15,7 +15,7 @@ import {
 } from "../src/ioc-container";
 
 describe("DependencyGraphAnalyzer", () => {
-    it.only("Should identify proper registered components", () => {
+    it("Should identify proper registered components", () => {
         class LCDScreen { }
         @inject.constructor()
         class Monitor {
