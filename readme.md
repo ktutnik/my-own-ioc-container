@@ -415,9 +415,9 @@ The resolution part perform operation like below
 
 ```typescript
 //array of component model comes from registration
-let componentModels = []
+let componentModels 
 //object to store singleton cache
-let singletonCache = {}
+let singletonCache 
 
 function resolve(request){
     if(typeof request == "string")
@@ -427,13 +427,11 @@ function resolve(request){
 }
 
 function resolveModel(model){
-    const instance = new model.type(...model.dependencies.map(x => resolve(x)))
-    if(model.lifeStyle == "Singleton"){
-        const cache = singletonCache[model.name]
-        if(!cache) return singletonCache[model.name] = instance
-        else return cache
+    const cache = singletonCache[model.name]
+    if(cache && model.lifeStyle == "Singleton"){
+        return cache
     }
-    else return instance
+    else return singletonCache[model.name] = new model.type(...model.dependencies.map(x => resolve(x)))
 }
 ```
 
@@ -442,7 +440,7 @@ Above code is simplified version of resolution part, in real implementation it n
 The most important part of above implementation is the instantiation process 
 
 ```typescript
-const instance = new model.type(...model.dependencies.map(x => resolve(x)))
+new model.type(...model.dependencies.map(x => resolve(x)))
 ```
 
 Above code will create instance of the requested type and resolve the parameter recursively. For example if we request the `Computer` class, the component model is like be below:
