@@ -21,11 +21,11 @@ describe("DependencyGraphAnalyzer", () => {
         class Monitor {
             constructor(screen: LCDScreen) { }
         }
-        class Keyboard {}
-        class Mouse{}
+        class Keyboard { }
+        class Mouse { }
         @inject.constructor()
         class Computer {
-            constructor(monitor: Monitor, extensionMonitor:Monitor, keyboard:Keyboard, mouse:Mouse) { }
+            constructor(monitor: Monitor, extensionMonitor: Monitor, keyboard: Keyboard, mouse: Mouse) { }
         }
 
         const analyzer = new DependencyGraphAnalyzer([
@@ -105,27 +105,29 @@ describe("DependencyGraphAnalyzer", () => {
     })
 
     it("Should skip analysis of already analyzed component", () => {
-        @inject.constructor()
-        class LCDScreen {
-            constructor(@inject.name("Computer") computer: any) { }
-        }
+        class LCDScreen { }
         @inject.constructor()
         class Monitor {
             constructor(screen: LCDScreen) { }
         }
         @inject.constructor()
         class Computer {
-            constructor(monitor: Monitor) { }
+            constructor(monitor: Monitor, extensionMonitor: Monitor) { }
         }
 
-        const lcdComp = new TypeComponentModel(LCDScreen)
-        lcdComp.analyzed = true
+        const path: string[] = []
         const analyzer = new DependencyGraphAnalyzer([
-            lcdComp,
+            new TypeComponentModel(LCDScreen),
             new TypeComponentModel(Monitor),
-            new TypeComponentModel(Computer, "Computer")
+            new TypeComponentModel(Computer)
+        ], p => path.push(p))
+        analyzer.analyze(Computer)
+        Chai.expect(path).deep.eq([
+            'Computer',
+            //without cached analysis below path will be repeated twice
+            'Computer -> Monitor',
+            'Computer -> Monitor -> LCDScreen'
         ])
-        Chai.expect(analyzer.analyze("Computer")).undefined
     })
 })
 

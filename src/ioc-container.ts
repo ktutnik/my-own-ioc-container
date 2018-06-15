@@ -1,3 +1,5 @@
+//version: 1.0.1
+
 import "reflect-metadata";
 
 /* ------------------------------------------------------------------------------- */
@@ -12,7 +14,6 @@ interface IndexNameType { index: number, name: string }
 interface Resolver { resolve<T>(config: ComponentModel): T }
 interface Kernel { resolve<T>(type: Class<T> | string): T }
 interface AutoFactory<T> { get(): T }
-interface Analyzer { analyze(path: (string | Class<any>)[], model?: ComponentModel): string | undefined }
 
 interface ComponentModelModifier<T> {
     singleton(): ComponentModelModifier<T>,
@@ -153,7 +154,7 @@ abstract class ResolverBase implements Resolver {
 }
 
 class DependencyGraphAnalyzer {
-    constructor(private models: ComponentModel[]) { }
+    constructor(private models: ComponentModel[], private callback?:(path:string) => void) { }
     
     private getModelByNameOrType(type: string | Class<any>): ComponentModel | undefined {
         const filter = (x: ComponentModel) =>
@@ -179,6 +180,7 @@ class DependencyGraphAnalyzer {
         if (model && model.analyzed) return
         const curName = getComponentName(path[path.length - 1])
         const curPath = path.map(x => getComponentName(x)).join(" -> ")
+        if(this.callback) this.callback(curPath)
         if (!model) return `Trying to resolve ${curPath} but ${curName} is not registered in container`
         else {
             if (this.hasCircularDependency(path, model)) return `Circular dependency detected on: ${curPath}`
