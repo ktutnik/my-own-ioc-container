@@ -3,7 +3,7 @@
   "description": "a dead simple IoC Container that can be hosted in your project code become Your Own IoC Container",
   "scripts": {
     "postinstall": "tsc",
-    "test": "nyc --reporter=lcov --reporter=text mocha"
+    "test": "jest --coverage --collectCoverageFrom=src/**/*.js"
   },
   "author": "Ketut Sandiarsa",
   "license": "MIT",
@@ -11,13 +11,10 @@
     "reflect-metadata": "^0.1.12"
   },
   "devDependencies": {
-    "@types/chai": "^4.1.3",
-    "@types/mocha": "^5.2.1",
+    "@types/jest": "^23.1.1",
     "benalu": "^2.0.0-beta-1",
-    "chai": "^4.1.2",
     "coveralls": "^3.0.1",
-    "mocha": "^5.2.0",
-    "nyc": "^12.0.2",
+    "jest": "^23.1.0",
     "tslib": "^1.9.2",
     "tslint": "^5.10.0",
     "typescript": "^2.9.1"

@@ -1,7 +1,6 @@
 import "reflect-metadata";
 
 import * as Benalu from "benalu";
-import * as Chai from "chai";
 
 import {
     AutoFactory,
@@ -35,7 +34,7 @@ describe("DependencyGraphAnalyzer", () => {
             new TypeComponentModel(Monitor),
             new TypeComponentModel(Computer)
         ])
-        Chai.expect(analyzer.analyze(Computer)).undefined
+        expect(analyzer.analyze(Computer)).toBeUndefined()
     })
 
     it("Should OK with other type of component model than TypeComponentModel", () => {
@@ -54,13 +53,13 @@ describe("DependencyGraphAnalyzer", () => {
             new AutoFactoryComponentModel(Monitor, "MonitorFactory"),
             new TypeComponentModel(Computer, "Computer")
         ])
-        Chai.expect(analyzer.analyze(Computer)).undefined
+        expect(analyzer.analyze(Computer)).toBeUndefined()
 
     })
 
     it("Should identify non registered component", () => {
         const analyzer = new DependencyGraphAnalyzer([])
-        Chai.expect(() => analyzer.analyze("MyComponent")).throws("Trying to resolve MyComponent but MyComponent is not registered in container")
+        expect(() => analyzer.analyze("MyComponent")).toThrow("Trying to resolve MyComponent but MyComponent is not registered in container")
     })
 
     it("Should identify non registered component in depth dependency", () => {
@@ -79,7 +78,7 @@ describe("DependencyGraphAnalyzer", () => {
             new TypeComponentModel(Monitor),
             new TypeComponentModel(Computer)
         ])
-        Chai.expect(() => analyzer.analyze(Computer)).throws("Trying to resolve Computer -> Monitor -> LCDScreen but LCDScreen is not registered in container")
+        expect(() => analyzer.analyze(Computer)).toThrow("Trying to resolve Computer -> Monitor -> LCDScreen but LCDScreen is not registered in container")
     })
 
     it("Should identify circular dependency", () => {
@@ -101,7 +100,7 @@ describe("DependencyGraphAnalyzer", () => {
             new TypeComponentModel(Monitor),
             new TypeComponentModel(Computer, "Computer")
         ])
-        Chai.expect(() => analyzer.analyze("Computer")).throws("Circular dependency detected on: Computer -> Monitor -> LCDScreen -> Computer")
+        expect(() => analyzer.analyze("Computer")).toThrow("Circular dependency detected on: Computer -> Monitor -> LCDScreen -> Computer")
     })
 
     it("Should skip analysis of already analyzed component", () => {
@@ -122,7 +121,7 @@ describe("DependencyGraphAnalyzer", () => {
             new TypeComponentModel(Computer)
         ], p => path.push(p))
         analyzer.analyze(Computer)
-        Chai.expect(path).deep.eq([
+        expect(path).toEqual([
             'Computer',
             //without cached analysis below path will be repeated twice
             'Computer -> Monitor',
@@ -146,10 +145,10 @@ describe("Container", () => {
         container.register(Monitor)
         container.register(Computer)
         const computer = container.resolve(Computer)
-        Chai.expect(computer instanceof Computer).true
-        Chai.expect(computer.processor instanceof Processor).true
-        Chai.expect(computer.monitor instanceof Monitor).true
-        Chai.expect(computer.keyboard instanceof Keyboard).true
+        expect(computer instanceof Computer).toBe(true)
+        expect(computer.processor instanceof Processor).toBe(true)
+        expect(computer.monitor instanceof Monitor).toBe(true)
+        expect(computer.keyboard instanceof Keyboard).toBe(true)
     })
 
     it("Should be able to resolve type with default constructor which uses base class constructor", () => {
@@ -163,9 +162,9 @@ describe("Container", () => {
         container.register(Processor)
         container.register(AppleComputer)
         const computer = container.resolve(AppleComputer)
-        Chai.expect(computer instanceof Computer).true
-        Chai.expect(computer instanceof AppleComputer).true
-        Chai.expect(computer.processor instanceof Processor).true
+        expect(computer instanceof Computer).toBe(true)
+        expect(computer instanceof AppleComputer).toBe(true)
+        expect(computer.processor instanceof Processor).toBe(true)
     })
 
     it("Should resolve with scope Transient/Singleton properly", () => {
@@ -176,8 +175,8 @@ describe("Container", () => {
         container.register(Child)
         const wife = container.resolve(Wife)
         const child = container.resolve(Child)
-        Chai.expect(container.resolve(Wife)).eq(wife)
-        Chai.expect(container.resolve(Child)).not.eq(child)
+        expect(container.resolve(Wife) == wife).toBe(true)
+        expect(container.resolve(Child) != child).toBe(true)
     })
 
     it("Should able to register and resolve interface/named type", () => {
@@ -199,10 +198,10 @@ describe("Container", () => {
         container.register(LGMonitor)
         container.register(Computer)
         const computer = container.resolve(Computer)
-        Chai.expect(computer instanceof Computer).true
-        Chai.expect(computer.processor instanceof Intel).true
-        Chai.expect(computer.monitor instanceof LGMonitor).true
-        Chai.expect(computer.keyboard instanceof Logitech).true
+        expect(computer instanceof Computer).toBe(true)
+        expect(computer.processor instanceof Intel).toBe(true)
+        expect(computer.monitor instanceof LGMonitor).toBe(true)
+        expect(computer.keyboard instanceof Logitech).toBe(true)
     })
 
     it("Should resolve instance properly", () => {
@@ -216,8 +215,8 @@ describe("Container", () => {
         container.register("Monitor").asInstance(new LGMonitor())
         container.register(Computer)
         const computer = container.resolve(Computer)
-        Chai.expect(computer instanceof Computer).true
-        Chai.expect(computer.monitor instanceof LGMonitor).true
+        expect(computer instanceof Computer).toBe(true)
+        expect(computer.monitor instanceof LGMonitor).toBe(true)
     })
 
     it("Should resolve instance with callback", () => {
@@ -235,9 +234,9 @@ describe("Container", () => {
         container.register("Monitor").asInstance(kernel => new LGMonitor(kernel.resolve(RetinaDisplay)))
         container.register(Computer)
         const computer = container.resolve(Computer)
-        Chai.expect(computer instanceof Computer).true
-        Chai.expect(computer.monitor instanceof LGMonitor).true
-        Chai.expect(computer.monitor.display instanceof RetinaDisplay).true
+        expect(computer instanceof Computer).toBe(true)
+        expect(computer.monitor instanceof LGMonitor).toBe(true)
+        expect(computer.monitor.display instanceof RetinaDisplay).toBe(true)
     })
 
     it("Should be able to resolve auto factory", () => {
@@ -247,7 +246,7 @@ describe("Container", () => {
         container.register("AutoFactory<Computer>").asAutoFactory(Computer)
         const computerFactory = container.resolve<AutoFactory<Computer>>("AutoFactory<Computer>")
         const computer = computerFactory.get()
-        Chai.expect(computer instanceof Computer).true
+        expect(computer instanceof Computer).toBe(true)
     })
 
     it("Auto factory should respect component registration life style", () => {
@@ -262,10 +261,10 @@ describe("Container", () => {
         const child = container.resolve(Child)
         const wifeFactory = container.resolve<AutoFactory<Wife>>("AutoFactory<Wife>")
         const childFactory = container.resolve<AutoFactory<Child>>("AutoFactory<Child>")
-        Chai.expect(container.resolve(Wife)).eq(wife)
-        Chai.expect(container.resolve(Child)).not.eq(child)
-        Chai.expect(wifeFactory.get()).eq(wife)
-        Chai.expect(childFactory.get()).not.eq(child)
+        expect(container.resolve(Wife)).toEqual(wife)
+        expect(container.resolve(Child) != child).toBe(true)
+        expect(wifeFactory.get()).toEqual(wife)
+        expect(childFactory.get() != child).toBe(true)
     })
 
     it("Should be able to provide hook when component created", () => {
@@ -276,8 +275,8 @@ describe("Container", () => {
             return x
         })
         const computer = container.resolve(Computer)
-        Chai.expect(computer instanceof Computer).true
-        Chai.expect(computer.price).eq(4000)
+        expect(computer instanceof Computer).toBe(true)
+        expect(computer.price).toEqual(4000)
     })
 
     it("Should be able to provide hook for named type", () => {
@@ -288,8 +287,8 @@ describe("Container", () => {
             return x
         })
         const computer = container.resolve<Computer>("Computer")
-        Chai.expect(computer instanceof Computer).true
-        Chai.expect(computer.price).eq(4000)
+        expect(computer instanceof Computer).toBe(true)
+        expect(computer.price).toEqual(4000)
     })
 
     it("Should be able to provide hook for named instance", () => {
@@ -300,8 +299,8 @@ describe("Container", () => {
             return x
         })
         const computer = container.resolve<Computer>("Computer")
-        Chai.expect(computer instanceof Computer).true
-        Chai.expect(computer.price).eq(4000)
+        expect(computer instanceof Computer).toBe(true)
+        expect(computer.price).toEqual(4000)
     })
 
     it("Should be able to provide hook for auto factory", () => {
@@ -312,7 +311,7 @@ describe("Container", () => {
             return x
         })
         const factory = container.resolve<AutoFactory<Computer>>("ComputerFactory")
-        Chai.expect(factory.get() instanceof Computer).true
+        expect(factory.get() instanceof Computer).toBe(true)
     })
 
     it("Should be able to use Benalu as interception", () => {
@@ -336,26 +335,26 @@ describe("Container", () => {
                 }).build())
         const computer = container.resolve(Computer)
         computer.start()
-        Chai.expect(computer instanceof Computer).true
-        Chai.expect(count).eq(2)
+        expect(computer instanceof Computer).toBe(true)
+        expect(count).toEqual(2)
     })
 
     describe("Error Handling", () => {
         it("Should throw error if no resolver found for a kind of ComponentModel", () => {
             const container = new Container()
             container.register(<ComponentModel>{ kind: "NotAKindOfComponent", name: "TheName", scope: "Transient" })
-            Chai.expect(() => container.resolve("TheName")).throws("No resolver registered for component model kind of NotAKindOfComponent")
+            expect(() => container.resolve("TheName")).toThrow("No resolver registered for component model kind of NotAKindOfComponent")
         })
 
         it("Should inform if a type not registered in the container", () => {
             class Computer { }
             const container = new Container()
-            Chai.expect(() => container.resolve(Computer)).throw("Trying to resolve Computer but Computer is not registered in container")
+            expect(() => container.resolve(Computer)).toThrow("Trying to resolve Computer but Computer is not registered in container")
         })
 
         it("Should inform if a named type not registered in the container", () => {
             const container = new Container()
-            Chai.expect(() => container.resolve("Computer")).throw("Trying to resolve Computer but Computer is not registered in container")
+            expect(() => container.resolve("Computer")).toThrow("Trying to resolve Computer but Computer is not registered in container")
         })
 
         it("Should inform circular dependency", () => {
@@ -375,7 +374,7 @@ describe("Container", () => {
             container.register(LCDScreen)
             container.register(Monitor)
             container.register("Computer").asType(Computer)
-            Chai.expect(() => container.resolve("Computer")).throws("Circular dependency detected on: Computer -> Monitor -> LCDScreen -> Computer")
+            expect(() => container.resolve("Computer")).toThrow("Circular dependency detected on: Computer -> Monitor -> LCDScreen -> Computer")
         })
     })
 })

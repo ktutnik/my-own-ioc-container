@@ -1,4 +1,5 @@
-//version: 1.0.1
+//version   : 1.0.1
+//github    : https://github.com/ktutnik/my-own-ioc-container 
 
 import "reflect-metadata";
 
