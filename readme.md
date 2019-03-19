@@ -2,7 +2,7 @@
 A dead simple IoC Container that can be hosted in your project code become Your Own IoC Container
 
 [![Build Status](https://travis-ci.org/ktutnik/my-own-ioc-container.svg?branch=master)](https://travis-ci.org/ktutnik/my-own-ioc-container)
-[![Coverage Status](https://coveralls.io/repos/github/ktutnik/my-own-ioc-container/badge.svg?branch=master)](https://coveralls.io/github/ktutnik/my-own-ioc-container?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/ktutnik/my-own-ioc-container/badge.svg?branch=master)](https://coveralls.io/github/ktutnik/my-own-ioc-container?branch=master) [![Greenkeeper badge](https://badges.greenkeeper.io/ktutnik/my-own-ioc-container.svg)](https://greenkeeper.io/)
 
 
 ## Motivation
