@@ -1,5 +1,8 @@
 .nyc_output
 .DS_Store
 *.js
+!jest.config.js
 node_modules
 coverage
+package-lock.json 
+yarn.lock

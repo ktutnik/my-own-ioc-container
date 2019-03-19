@@ -328,7 +328,7 @@ class InstanceComponentModel<T> extends ComponentModelBase<T> {
 class InstanceResolver extends ResolverBase {
     protected getInstance<T>(info: InstanceComponentModel<T>): T {
         if (typeof info.value == "function")
-            return info.value(this.kernel)
+            return (info.value as Function)(this.kernel)
         else
             return info.value
     }

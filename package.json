@@ -2,21 +2,21 @@
   "name": "my-own-ioc-container",
   "description": "a dead simple IoC Container that can be hosted in your project code become Your Own IoC Container",
   "scripts": {
-    "postinstall": "tsc",
-    "test": "jest --coverage --collectCoverageFrom=src/**/*.js"
+    "test": "jest"
   },
   "author": "Ketut Sandiarsa",
   "license": "MIT",
   "dependencies": {
-    "reflect-metadata": "^0.1.12"
+    "reflect-metadata": "^0.1.13"
   },
   "devDependencies": {
-    "@types/jest": "^23.1.1",
+    "@types/jest": "^24.0.11",
     "benalu": "^2.0.0-beta-1",
-    "coveralls": "^3.0.1",
-    "jest": "^23.1.0",
-    "tslib": "^1.9.2",
-    "tslint": "^5.10.0",
-    "typescript": "^2.9.1"
+    "coveralls": "^3.0.3",
+    "jest": "^24.5.0",
+    "ts-jest": "^24.0.0",
+    "tslib": "^1.9.3",
+    "tslint": "^5.14.0",
+    "typescript": "^3.3.3333"
   }
 }
